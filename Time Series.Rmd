@@ -1,0 +1,171 @@
+---
+title: "Doing Data Analysis and the Modelling with the dataset of Air passengers"
+output: word_document
+---
+
+## Data Source
+The data is been taken from the kaggle website. the link for the data source is as follows https://www.kaggle.com/limkongkong/airpassengers .
+
+## Introduction
+The main aim of doing the analysis and modelling for the dataset is to review the time series theory and also doing some experiments with current R packages.
+ARIMA model has been used for the dataset of Air Passengers and we have done exploratory data analysis, we have tried to decompose the dataset so as to test the stationarity. After identifying whether data is stationarity we have fitted a model by using augmented algorithm. Finally, we have forecasted the trend for next 10 years Setup.
+
+## Loading the packages
+
+```{r setup, include=FALSE}
+library(readr)
+library(TSA)
+library(forecast)
+library(lmtest)
+library(tseries)
+library(ggfortify)
+```
+
+## Loading the Data for the Air passengers
+
+```{r cars}
+data(AirPassengers)
+air <- AirPassengers
+class(air)
+```
+
+## Part 1: Executing the necessary analysis of data.
+
+To do the analysis of data first we need to look at the data review it with necessary functions like summary statistics and later doing it with plots.
+
+```{r}
+air
+sum(is.na(air))
+frequency(air)
+cycle(air)
+summary(air)
+plot(air,xlab="Date", ylab = "Number of Passengers",main="Passenger Count from the year 1949 till 1961")
+```
+
+There is a R package known as ggfortify which is used as extension from the R package ggplot2 as an alternative for base function to plot directly with the help of time series.
+
+```{r pressure, echo=FALSE}
+autoplot(air) + labs(x ="Date", y = "Numbers of Passengers", title="Passenger Count from the year 1949 till 1961")
+```
+
+After doing this to see any seasonal effects we will use the function of boxplot to show the necessary plot.
+
+```{r}
+boxplot(air~cycle(air),xlab="Date", ylab = "Passenger Numbers (1000's)" ,main ="Monthly Passenger Count from the year 1949 till 1961")
+```
+
+So according to the boxplot we can say that there are some place where we can make some initial inferences.
+We can say that due to the growth in the demand for the air flights to travel because of these the number of passengers are increasing day by day yearly which can be an indication for the linear trend.
+In the year of 12 months we can say there is a year of season in which we can say that most of the people travel at that time so in this we can say that between the period 6 to 9 we can see that with the higher variances and mean compare to other months. So, according to the plot we can see that we cannot see any missing values and also not any outliers so the next step of data cleaning is not required.
+
+## Part 2: Doing the decomposition of the dataset.
+
+Using the method Moving average we will do the estimates of the trend, seasonal and also the random components with the decomposition of the time series.
+
+The formula for the Multiplicative we can say is :
+Y[t]=T[t]???S[t]???e[t]
+
+Where 
+.	Y(t) stands for no. of the travelers at t time.
+.	T(t) stands for trend constituent at t time.
+.	S(t) stands for seasonal factor for t time.
+.	e(t) stands for the random error factor for t time.
+
+With the help of this we will be doing the function of decomposition to use the R functions for making plots, autoplot for the further analysis. 
+
+```{r}
+decomposeair <- decompose(air,"multiplicative")
+autoplot(decomposeair)
+```
+
+So In the plot of decomposition we get to see that the seasonality and the trend line are previously inferred, but for the random factor it is under the "remainder". 
+
+## Part 3: TEST STATIONARITY OF THE TIME SERIES
+
+Mean, covariance and variance are not elements of time according to the condition of stationary time series. The time arrangement is required to be stationary so as to fit ARIMA models and for that purpose we have utilized two techniques:
+     1.Augmented Dickey-Fuller Test for checking stationarity adf.test function is used from tseries package of R to test the stationarity of the time series and for that purpose we have applied Augmented Dickey-Fuller Test Firstly, we will check the hypothesis:
+H0 : time series is not stationary
+HA : time series is stationary
+
+```{r}
+adf.test(diff(log(air)), alternative="stationary", k=0)
+```
+
+As per the results mentioned above, we will reject the null hypothesis, as p-value is less than 5% and accept the alternative hypothesis and conclude that the time series is stationary.
+     2. Auto-correlation function acf function has been used from package of R and with the help of this function we will plot the correlation between the time series and its lags. A specific lag is meaningfully interrelated with series, if the auto-correlation surpass the dashed blue line.
+     
+```{r}
+autoplot(acf(log(air))) + labs(title="Correlogram of Air Passengers from 1949 to 1961") 
+```
+
+From the above figure it can be predicted that there is a positive relation with the cycle of 12 months, which is indicated by maximum at lag 1 or 12 months.
+We have now plotted the acf, list object with a arbitrary component has previously been formed.
+
+We can see the decay of ACF chart is too slow, which shows us that the population is not stationary.
+Now let's check how the ACF and PACF curve will result after we test regression on the differences.
+
+```{r}
+acf(diff(log(air)))
+pacf(diff(log(air)))
+```
+
+We can see the ACF plot disconnects after first interval. We get to know ACF curves gets a interval which means p value should be 0. We can see (0,1,1) as (p,d,q) combination  with lowest AIC and BIC.
+
+## Part 4:  Fitting the time series model.
+
+1.	Linear Model
+We have done the plotting of the dataset of the air travelers with a blue linear model because as the trend is upward, we can have a look at the model for doing the comparison of linear.
+
+```{r}
+
+```
+
+As we can see that as per the findings this may not be the best fitted model for the dataset as because it do not see the seasonality and effects over time.
+
+2.	ARIMA Model 
+For the ARIMA model we would be using the forecast R package in that the function auto.arima which would be the best model to fit and also the coefficients. 
+
+```{r}
+(arimaair <- arima(log(air), c(0, 1, 1),seasonal = list(order = c(0, 1, 1), period = 12)))
+arimaair
+```
+
+The ARIMA(2,1,1) (0,1,0)[12] parameters model which are defined as lag 1 with differencing (d), by which an autoreverting term of second lag (p) which has a changing average for the model of order 1(q). 
+
+ARIMA model:
+     
+        Y^=0.5960Yt2+0.2143Yt120.9819et1+E
+
+
+In which
+E stands for error.
+
+For doing the model diagnostics for the residuals and the acf. We will use the package ggfortify R package in which the ggtsdiag function which will include a autocovariance plot. 
+
+```{r}
+ggtsdiag(arimaair)
+```
+
+We can say that the ARIMA model is good fit as the plots can been seen around 0 centered as noise which includes with no pattern. 
+
+
+
+## Part 5: CALCULATE FORECASTS
+
+Finally, using the Forecast function we will now fit the Arima Model with the time series and later the we will calculate the future 10 years.
+
+```{r}
+(arimaair <- arima(log(air), c(0, 1, 1),seasonal = list(order = c(0, 1, 1), period = 12)))
+arimaair
+pred <- predict(arimaair, n.ahead = 10*12)
+ts.plot(air,2.718^pred$pred, log = "y", lty = c(1,3))
+
+```
+
+To conclude, we have used some time series packages in R which are tseries, ggfortify and forecast. This was a good basic ARIMA modeling project now we can move to more complex comparisons, new time series dataset and models in R.
+
+
+
+
+
+
